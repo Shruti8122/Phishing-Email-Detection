@@ -1,83 +1,98 @@
-import streamlit as st
+from flask import Flask, request, jsonify
+from flask_cors import CORS
+
 import joblib
 import re
 import string
 
-# -----------------------------------
-# Page Configuration
-# -----------------------------------
-st.set_page_config(
-    page_title="Phishing Email Detection",
-    page_icon="📧",
-    layout="centered"
-)
+app = Flask(__name__)
+CORS(app)
 
-# -----------------------------------
-# Load Model and Vectorizer
-# -----------------------------------
 model = joblib.load("models/phishing_neural_network.pkl")
 vectorizer = joblib.load("models/tfidf_vectorizer.pkl")
 
-# -----------------------------------
-# Email Cleaning Function
-# -----------------------------------
 def clean_email(text):
-    text = text.lower()
-    text = re.sub(r"http\S+", "", text)
-    text = re.sub(r"www\S+", "", text)
-    text = re.sub(r"<.*?>", "", text)
-    text = re.sub(r"\S+@\S+", "", text)
-    text = re.sub(r"\d+", "", text)
+
+    import re
+import string
+import nltk
+
+from nltk.corpus import stopwords
+from nltk.stem import WordNetLemmatizer
+
+nltk.download("stopwords")
+nltk.download("wordnet")
+
+lemmatizer = WordNetLemmatizer()
+stop_words = set(stopwords.words("english"))
+
+def clean_email(text):
+
+    text = str(text).lower()
+
+    # Remove URLs
+    text = re.sub(r"http\S+|www\S+", " ", text)
+
+    # Remove email addresses
+    text = re.sub(r"\S+@\S+", " ", text)
+
+    # Remove numbers
+    text = re.sub(r"\d+", " ", text)
+
+    # Remove punctuation
     text = text.translate(str.maketrans("", "", string.punctuation))
+
+    # Remove extra spaces
     text = re.sub(r"\s+", " ", text).strip()
-    return text
 
-# -----------------------------------
-# Title
-# -----------------------------------
-st.title("📧 AI-Driven Phishing Email Detection")
+    # Tokenization
+    words = text.split()
 
-st.write(
-    "Paste an email below to determine whether it is a **Safe Email** or a **Phishing Email** using a trained Neural Network model."
-)
+    # Remove stopwords
+    words = [word for word in words if word not in stop_words]
 
-# -----------------------------------
-# User Input
-# -----------------------------------
-email = st.text_area(
-    "Enter Email Text",
-    height=250,
-    placeholder="Paste the email content here..."
-)
+    # Lemmatization
+    words = [lemmatizer.lemmatize(word) for word in words]
 
-# -----------------------------------
-# Prediction
-# -----------------------------------
-if st.button("Predict"):
+    return " ".join(words)
 
-    if email.strip() == "":
-        st.warning("Please enter an email.")
+
+@app.route("/")
+def home():
+
+    return jsonify({
+        "message": "Phishing Detection API Running"
+    })
+
+@app.route("/predict", methods=["POST"])
+def predict():
+
+    data = request.get_json()
+
+    email = data.get("email")
+
+    if not email:
+        return jsonify({
+            "error": "Email is required."
+        }), 400
+
+    cleaned = clean_email(email)
+
+    vector = vectorizer.transform([cleaned])
+
+    prediction = model.predict(vector)[0]
+
+    confidence = model.predict_proba(vector).max() * 100
+
+    if prediction == 1:
+        label = "Phishing"
     else:
+        label = "Safe"
 
-        cleaned = clean_email(email)
+    return jsonify({
+        "prediction": label,
+        "confidence": round(float(confidence),2)
+    })
 
-        vector = vectorizer.transform([cleaned])
-
-        prediction = model.predict(vector)[0]
-
-        confidence = model.predict_proba(vector).max() * 100
-
-        st.divider()
-
-        st.subheader("Prediction")
-
-        if prediction == 1:
-            st.error("🚨 Phishing Email")
-        else:
-            st.success("✅ Safe Email")
-
-        st.write(f"**Confidence:** {confidence:.2f}%")
-
-        st.divider()
-
-        st.caption("Model Used: Neural Network")
+if __name__ == "__main__":
+    app.run(debug=True)
