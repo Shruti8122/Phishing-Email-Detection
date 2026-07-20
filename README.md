@@ -6,6 +6,14 @@ The project features a **React frontend**, a **Flask REST API backend**, and a t
 
 ---
 
+## 🚀 Live Demo
+
+🔗 **Live Application:** https://phishing-email-detection-seven.vercel.app/
+
+Experience the AI-Driven Phishing Email Detection system through a modern React interface. Users can paste the content of an email, submit it for analysis, and receive an instant prediction indicating whether the email is **Safe** or **Phishing**, along with the model's confidence score.
+
+---
+
 # 📖 Overview
 
 Phishing emails are one of the most common cybersecurity threats used to steal sensitive information such as passwords, banking credentials, and personal data. This project applies Machine Learning and Natural Language Processing techniques to analyze email content and classify it as either **Safe** or **Phishing**.
